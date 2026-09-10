@@ -60,10 +60,9 @@ wss.on("connection",ws=>{
     let m; try{m=JSON.parse(raw)}catch{return}
 
     if((m.type==="create"||m.type==="join")&&!p){
-      const id=String(m.room||"").replace(/\D/g,"").slice(0,4);
+      const id=String(m.room||"").replace(/\D/g,"");
       if(!/^\d{4}$/.test(id)) return send(ws,{type:"error",msg:"4桁の部屋番号を入力してください"});
       if(m.type==="create"&&rooms.has(id)) return send(ws,{type:"error",msg:"その部屋番号は使用中です"});
-      if(m.type==="join"&&!rooms.has(id)) return send(ws,{type:"error",msg:"その部屋は存在しません"});
       r=getRoom(id);
       if(r.started) return send(ws,{type:"error",msg:"その部屋は対戦中です"});
       if(r.players.size>=4) return send(ws,{type:"error",msg:"部屋が満員です"});
