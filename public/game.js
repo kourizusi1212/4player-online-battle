@@ -7,8 +7,6 @@ msg=document.querySelector("#msg");
 
 let ws,me="",room="",map=[],players=[],keys={},started=false;
 let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;
-let mouseLocked=false;
-const MOUSE_SENSITIVITY=0.0025;
 const MOVE_SPEED=3.8, FOV=Math.PI/3, INTERNAL_W=480;
 let viewW=480,viewH=270,scaleX=1,scaleY=1;
 
@@ -78,20 +76,6 @@ addEventListener("keydown",e=>{
   if(["arrowup","arrowdown","arrowleft","arrowright"].includes(e.key.toLowerCase()))e.preventDefault();
 });
 addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
-
-// マウスで視点を左右に動かす（Pointer Lock）
-c.addEventListener("click",()=>{
-  if(started && document.pointerLockElement!==c) c.requestPointerLock();
-});
-document.addEventListener("pointerlockchange",()=>{
-  mouseLocked=document.pointerLockElement===c;
-});
-document.addEventListener("mousemove",e=>{
-  if(!started || !mouseLocked)return;
-  localA+=e.movementX*MOUSE_SENSITIVITY;
-  // 角度を0〜2πに収める
-  localA=(localA+Math.PI*2)%(Math.PI*2);
-});
 
 function wall(x,y){
   const X=Math.floor(x),Y=Math.floor(y);
@@ -195,28 +179,3 @@ function loop(t){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-
-<script>
-(function () {
-  function enableMouseLook() {
-    const el = document.querySelector('canvas') || document.body;
-    if (document.pointerLockElement !== el && el.requestPointerLock) {
-      try { el.requestPointerLock(); } catch(e) {}
-    }
-  }
-  window.addEventListener('load', function () {
-    const el = document.querySelector('canvas') || document.body;
-    el.addEventListener('click', enableMouseLook);
-    el.addEventListener('mousedown', enableMouseLook);
-  });
-  document.addEventListener('pointerlockchange', function () {
-    // Keep mouse-look available whenever the game has focus.
-    if (document.visibilityState === 'visible') {
-      const el = document.querySelector('canvas') || document.body;
-      if (document.activeElement === el || document.activeElement === document.body) {
-        setTimeout(function(){ try { enableMouseLook(); } catch(e){} }, 50);
-      }
-    }
-  });
-})();
-</script>
