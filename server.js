@@ -16,7 +16,9 @@ const map=[
 "10000000000000000001",
 "11111111111111111111"
 ];
-const spawns=[[2,2],[17,2],[2,9],[17,9]];
+const spawns=[[2,2],[17,2],[2,8],[17,8]];
+function wall(x,y){const X=Math.floor(x),Y=Math.floor(y);return !map[Y]||map[Y][X]==="1";}
+function blocked(x,y,r=.20){return [[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r],[x,y]].some(([px,py])=>wall(px,py));}
 
 const srv=http.createServer((req,res)=>{
   let u=req.url==="/"?"index.html":req.url.slice(1);
@@ -101,8 +103,9 @@ wss.on("connection",ws=>{
     if(m.type==="move"&&r.started&&p.alive){
       const x=Number(m.x),y=Number(m.y),a=Number(m.a);
       if(Number.isFinite(x)&&Number.isFinite(y)){
-        p.x=Math.max(1.25,Math.min(18.75,x));
-        p.y=Math.max(1.25,Math.min(9.75,y));
+        const nx=Math.max(1.25,Math.min(18.75,x));
+        const ny=Math.max(1.25,Math.min(9.75,y));
+        if(!blocked(nx,ny,.20)){p.x=nx;p.y=ny;}
       }
       if(Number.isFinite(a))p.a=a;
       broadcastState(r);

@@ -81,6 +81,12 @@ function wall(x,y){
   const X=Math.floor(x),Y=Math.floor(y);
   return !map[Y]||map[Y][X]==="1";
 }
+function blocked(x,y,r=.20){
+  return [
+    [x-r,y-r],[x+r,y-r],
+    [x-r,y+r],[x+r,y+r],[x,y]
+  ].some(([px,py])=>wall(px,py));
+}
 
 function resize(){
   viewW=innerWidth;viewH=innerHeight;
@@ -95,14 +101,18 @@ addEventListener("resize",resize);resize();
 
 function update(dt){
   if(!started)return;
-  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
-  let iy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
-  if(ix||iy){
-    const len=Math.hypot(ix,iy);ix/=len;iy/=len;
+  // W=前進 / S=後退 / A=左 / D=右
+  let forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
+  let strafe=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
+  if(forward||strafe){
+    const len=Math.hypot(forward,strafe);
+    forward/=len; strafe/=len;
     const sp=MOVE_SPEED*dt;
-    const nx=localX+ix*sp,ny=localY+iy*sp;
-    if(!wall(nx,localY))localX=nx;
-    if(!wall(localX,ny))localY=ny;
+    const dx=strafe*sp;
+    const dy=-forward*sp;
+    const r=.20;
+    if(!blocked(localX+dx,localY,r)) localX+=dx;
+    if(!blocked(localX,localY+dy,r)) localY+=dy;
   }
   if(performance.now()-lastSend>60){
     ws.send(JSON.stringify({type:"move",x:localX,y:localY,a:localA}));
@@ -114,17 +124,16 @@ function update(dt){
 function castRay(px,py,angle){
   const dx=Math.cos(angle),dy=Math.sin(angle);
   let mx=Math.floor(px),my=Math.floor(py);
-  const ddx=Math.abs(1/(dx||1e-9)),ddy=Math.abs(1/(dy||1e-9));
+  const ddx=Math.abs(1/(Math.abs(dx)<1e-9?1e-9:dx));
+  const ddy=Math.abs(1/(Math.abs(dy)<1e-9?1e-9:dy));
   let sx,sy,sdx,sdy;
   if(dx<0){sx=-1;sdx=(px-mx)*ddx}else{sx=1;sdx=(mx+1-px)*ddx}
   if(dy<0){sy=-1;sdy=(py-my)*ddy}else{sy=1;sdy=(my+1-py)*ddy}
-  for(let i=0;i<60;i++){
-    if(sdx<sdy){sdx+=ddx;mx+=sx}
-    else{sdy+=ddy;my+=sy}
-    if(!map[my]||map[my][mx]==="1"){
-      const d=(sdx< sdy?sdx-ddx:sdy-ddy);
-      return Math.max(.05,d);
-    }
+  for(let i=0;i<80;i++){
+    let dist;
+    if(sdx<sdy){dist=sdx;sdx+=ddx;mx+=sx}
+    else{dist=sdy;sdy+=ddy;my+=sy}
+    if(!map[my]||map[my][mx]==="1") return Math.max(.05,dist);
   }
   return 20;
 }
