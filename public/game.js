@@ -15,6 +15,18 @@ function connect(){
   ws.onopen=()=>err.textContent="";
   ws.onclose=()=>{if(started)msg.textContent="通信が切断されました"};
   ws.onmessage=e=>{
+  let msg;
+  try{ msg=JSON.parse(e.data); }catch(err){ return; }
+  if(msg.t==="roomCreated" || msg.t==="roomJoined"){
+    roomCode=String(msg.code);
+    showLobby();
+    return;
+  }
+  if(msg.t==="roomError"){
+    alert(msg.message || "部屋に入れませんでした");
+    return;
+  }
+
     const m=JSON.parse(e.data);
     if(m.type==="joined"){
       me=m.id;room=m.room;map=m.map;ridE.textContent=room;
@@ -102,18 +114,35 @@ addEventListener("resize",resize);resize();
 function update(dt){
   if(!started)return;
   // W=前進 / S=後退 / A=左 / D=右
-  let forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
-  let strafe=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
-  if(forward||strafe){
-    const len=Math.hypot(forward,strafe);
-    forward/=len; strafe/=len;
-    const sp=MOVE_SPEED*dt;
-    const dx=strafe*sp;
-    const dy=-forward*sp;
-    const r=.20;
-    if(!blocked(localX+dx,localY,r)) localX+=dx;
-    if(!blocked(localX,localY+dy,r)) localY+=dy;
+  // WASD = 移動 / 矢印キー = 視点
+  const now=performance.now();
+  const dt=Math.min(0.033, Math.max(0, (now-lastFrameTime)/1000));
+
+  const turnSpeed=2.4;
+  if(keys.arrowleft) localA-=turnSpeed*dt;
+  if(keys.arrowright) localA+=turnSpeed*dt;
+
+  if(keys.arrowup) pitch=Math.max(-0.45,pitch-1.6*dt);
+  if(keys.arrowdown) pitch=Math.min(0.45,pitch+1.6*dt);
+
+  let f=(keys.w?1:0)-(keys.s?1:0);
+  let s=(keys.d?1:0)-(keys.a?1:0);
+
+  if(f||s){
+    const len=Math.hypot(f,s)||1;
+    f/=len; s/=len;
+    const speed=3.0;
+    const dx=(Math.sin(localA)*f+Math.cos(localA)*s)*speed*dt;
+    const dy=(-Math.cos(localA)*f+Math.sin(localA)*s)*speed*dt;
+    if(!blocked(localX+dx,localY,.20)) localX+=dx;
+    if(!blocked(localX,localY+dy,.20)) localY+=dy;
   }
+
+  if(now-lastMoveSend>66){
+    ws.send(JSON.stringify({t:"move",x:localX,y:localY,a:localA}));
+    lastMoveSend=now;
+  }
+
   if(performance.now()-lastSend>60){
     ws.send(JSON.stringify({type:"move",x:localX,y:localY,a:localA}));
     lastSend=performance.now();

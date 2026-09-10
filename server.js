@@ -53,10 +53,139 @@ function broadcastState(r,force=false){
   broadcast(r,snapshot(r));
 }
 
+
+// ---- Robust room management ----
+const rooms = new Map();
+
+function makeRoomCode(){
+  for(let i=0;i<100;i++){
+    const code=String(Math.floor(1000+Math.random()*9000));
+    if(!rooms.has(code)) return code;
+  }
+  return String(Date.now()).slice(-4);
+}
+
+function getRoom(code){
+  if(!rooms.has(code)) rooms.set(code,{players:new Set(),started:false});
+  return rooms.get(code);
+}
+
+function roomInfo(room){
+  return [...room.players].map(p=>({
+    id:p.id,
+    name:p.name || `Player ${p.id}`,
+    ready:!!p.ready
+  }));
+}
+
+function broadcastRoom(code){
+  const room=rooms.get(code);
+  if(!room) return;
+  const data=JSON.stringify({
+    t:"room",
+    code,
+    started:room.started,
+    players:roomInfo(room)
+  });
+  for(const p of room.players){
+    if(p.ws.readyState===1) p.ws.send(data);
+  }
+}
+
+function leaveRoom(p){
+  if(!p.room) return;
+  const room=rooms.get(p.room);
+  if(room){
+    room.players.delete(p);
+    broadcastRoom(p.room);
+    if(room.players.size===0) rooms.delete(p.room);
+  }
+  p.room=null;
+  p.ready=false;
+  p.started=false;
+}
+
 wss.on("connection",ws=>{
+  ws.id = Math.random().toString(36).slice(2,10);
+  ws.room = null;
+  ws.ready = false;
+  ws.name = "Player";
+
+  function send(obj){ if(ws.readyState===1) ws.send(JSON.stringify(obj)); }
+
+
   let r=null,p=null;
 
   ws.on("message",raw=>{
+    let data;
+    try{ data=JSON.parse(msg.toString()); }catch(e){ return; }
+
+    // Create a room
+    if(data.t==="createRoom"){
+      leaveRoom(ws);
+      const code=makeRoomCode();
+      const room=getRoom(code);
+      ws.room=code;
+      ws.name=(typeof data.name==="string" && data.name.trim()) ? data.name.trim().slice(0,20) : "Player";
+      ws.ready=false;
+      room.players.add(ws);
+      send({t:"roomCreated",code});
+      broadcastRoom(code);
+      return;
+    }
+
+    // Join a room
+    if(data.t==="joinRoom"){
+      const code=String(data.code||"").replace(/\D/g,"").slice(0,4);
+      const room=rooms.get(code);
+      if(!/^\d{4}$/.test(code)){
+        send({t:"roomError",message:"4桁の部屋番号を入力してください"});
+        return;
+      }
+      if(!room){
+        send({t:"roomError",message:"その部屋は存在しません"});
+        return;
+      }
+      if(room.started){
+        send({t:"roomError",message:"その部屋はすでにゲーム中です"});
+        return;
+      }
+      if(room.players.size>=4){
+        send({t:"roomError",message:"その部屋は満員です"});
+        return;
+      }
+      leaveRoom(ws);
+      ws.room=code;
+      ws.name=(typeof data.name==="string" && data.name.trim()) ? data.name.trim().slice(0,20) : "Player";
+      ws.ready=false;
+      room.players.add(ws);
+      send({t:"roomJoined",code});
+      broadcastRoom(code);
+      return;
+    }
+
+    if(data.t==="ready"){
+      if(!ws.room) return;
+      const room=rooms.get(ws.room);
+      if(!room || room.started) return;
+      ws.ready=!!data.ready;
+      broadcastRoom(ws.room);
+      return;
+    }
+
+    if(data.t==="start"){
+      if(!ws.room) return;
+      const room=rooms.get(ws.room);
+      if(!room || room.players.size<2 || room.players.size>4) return;
+      if([...room.players].every(p=>p.ready)){
+        room.started=true;
+        broadcastRoom(ws.room);
+        for(const p of room.players) if(p.ws && p.ws.readyState===1) p.ws.send(JSON.stringify({t:"start"}));
+      }
+      return;
+    }
+
+
     let m; try{m=JSON.parse(raw)}catch{return}
 
     if((m.type==="create"||m.type==="join")&&!p){
@@ -137,6 +266,8 @@ wss.on("connection",ws=>{
   });
 
   ws.on("close",()=>{
+    leaveRoom(ws);
+
     if(r&&p){
       r.players.delete(p.id);r.ready.delete(p.id);
       if(!r.players.size){
