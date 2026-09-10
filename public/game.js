@@ -102,14 +102,18 @@ addEventListener("resize",resize);resize();
 function update(dt){
   if(!started)return;
   // W=前進 / S=後退 / A=左 / D=右
-  let forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
-  let strafe=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
+  // WASD = 移動 / 矢印キー = 視点
+  const forward=(keys.w?1:0)-(keys.s?1:0);
+  const strafe=(keys.d?1:0)-(keys.a?1:0);
+  const turnSpeed=0.055;
+  if(keys.arrowleft) localA-=turnSpeed;
+  if(keys.arrowright) localA+=turnSpeed;
   if(forward||strafe){
     const len=Math.hypot(forward,strafe);
     forward/=len; strafe/=len;
     const sp=MOVE_SPEED*dt;
-    const dx=strafe*sp;
-    const dy=-forward*sp;
+    const dx=(Math.sin(localA)*f + Math.cos(localA)*s)*sp;
+    const dy=(-Math.cos(localA)*f + Math.sin(localA)*s)*sp;
     const r=.20;
     if(!blocked(localX+dx,localY,r)) localX+=dx;
     if(!blocked(localX,localY+dy,r)) localY+=dy;
