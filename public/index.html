@@ -37,28 +37,4 @@ canvas{display:block;width:100vw;height:100vh;image-rendering:auto}
 <div class="hp"><div class="bar" id="bar"></div></div><div class="hptext">HP <b id="hp"></b></div>
 <div class="cross">+</div><div class="gun"></div><div id="msg"></div></div>
 <script src="game.js"></script>
-
-<script>
-/* Mouse-look only: does not interfere with room/join/network buttons. */
-(() => {
-  const start = () => {
-    const canvas = document.querySelector("canvas");
-    if (!canvas) return;
-    const look = (e) => {
-      const dx = e.movementX || 0;
-      const dy = e.movementY || 0;
-      window.dispatchEvent(new CustomEvent("mouseLook", {detail:{dx,dy}}));
-    };
-    canvas.addEventListener("mousemove", look);
-    canvas.addEventListener("click", () => {
-      if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
-        try { canvas.requestPointerLock(); } catch (_) {}
-      }
-    });
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
-  } else start();
-})();
-</script>
 </body></html>

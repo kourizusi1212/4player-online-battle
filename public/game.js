@@ -6,7 +6,7 @@ plist=document.querySelector("#plist"),err=document.querySelector("#err"),
 msg=document.querySelector("#msg");
 
 let ws,me="",room="",map=[],players=[],keys={},started=false;
-let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;
+let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;\nlet mouseLocked=false;\nconst MOUSE_SENSITIVITY=0.0028;
 const MOVE_SPEED=3.8, FOV=Math.PI/3, INTERNAL_W=480;
 let viewW=480,viewH=270,scaleX=1,scaleY=1;
 
@@ -66,7 +66,30 @@ copy.onclick=async()=>{
   try{await navigator.clipboard.writeText(room);copymsg.textContent="コピーしました！"}catch{copymsg.textContent="コピーできませんでした"}
 };
 ready.onclick=()=>ws.send(JSON.stringify({type:"ready"}));
-start.onclick=()=>ws.send(JSON.stringify({type:"start"}));
+start.onclick=()=>{ ws.send(JSON.stringify({type:"start"})); setTimeout(lockMouse,80); };
+
+
+// 3D迷路と同じ「player.angle を直接更新する」方式のマウス視点。
+// ロビーでは動かず、ゲーム開始後だけ canvas を Pointer Lock して視点を回転する。
+function lockMouse(){
+  if(!started || !c.requestPointerLock) return;
+  try{ c.requestPointerLock(); }catch(_){}
+}
+c.addEventListener("click",()=>{
+  if(started) lockMouse();
+});
+document.addEventListener("pointerlockchange",()=>{
+  mouseLocked=(document.pointerLockElement===c);
+});
+c.addEventListener("mousemove",e=>{
+  if(!started) return;
+  if(mouseLocked){
+    localA += e.movementX * MOUSE_SENSITIVITY;
+    // 角度を -PI ～ PI に正規化（3D迷路の angle と同じ考え方）
+    if(localA>Math.PI) localA-=Math.PI*2;
+    if(localA<-Math.PI) localA+=Math.PI*2;
+  }
+});
 
 addEventListener("keydown",e=>{
   keys[e.key.toLowerCase()]=true;
