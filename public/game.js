@@ -30,10 +30,10 @@ function connect(){
       if(p){
         if(!started){localX=p.x;localY=p.y;localA=p.a}
         else{
-          // サーバーの値へ急激にワープさせず、少しだけ補正
-          localX+=(p.x-localX)*0.18;
-          localY+=(p.y-localY)*0.18;
-          localA=p.a;
+          // 移動位置だけをゆるく補正。視点角度はマウス入力を最優先にして
+          // サーバー更新で上書きしない（これが視点のガクつきの主原因）。
+          localX+=(p.x-localX)*0.12;
+          localY+=(p.y-localY)*0.12;
         }
         document.querySelector("#hp").textContent=p.hp;
         document.querySelector("#bar").style.width=p.hp+"%";
@@ -84,13 +84,13 @@ document.addEventListener("pointerlockchange",()=>{
   mouseLocked=(document.pointerLockElement===c);
 });
 c.addEventListener("mousemove",e=>{
-  if(!started) return;
-  if(mouseLocked){
-    localA += e.movementX * MOUSE_SENSITIVITY;
+  if(!started || !mouseLocked) return;
+  // movementX は Pointer Lock の相対移動量。フレーム数に依存させず
+  // 入力イベントごとに直接角度へ反映する。
+  localA += e.movementX * MOUSE_SENSITIVITY;
     // 角度を -PI ～ PI に正規化（3D迷路の angle と同じ考え方）
     if(localA>Math.PI) localA-=Math.PI*2;
     if(localA<-Math.PI) localA+=Math.PI*2;
-  }
 });
 
 addEventListener("keydown",e=>{
@@ -139,9 +139,10 @@ function update(dt){
     if(!blocked(localX+dx,localY,r)) localX+=dx;
     if(!blocked(localX,localY+dy,r)) localY+=dy;
   }
-  if(performance.now()-lastSend>60){
+  const now=performance.now();
+  if(ws && ws.readyState===WebSocket.OPEN && now-lastSend>50){
     ws.send(JSON.stringify({type:"move",x:localX,y:localY,a:localA}));
-    lastSend=performance.now();
+    lastSend=now;
   }
 }
 
