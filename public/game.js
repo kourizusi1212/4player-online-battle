@@ -6,7 +6,9 @@ plist=document.querySelector("#plist"),err=document.querySelector("#err"),
 msg=document.querySelector("#msg");
 
 let ws,me="",room="",map=[],players=[],keys={},started=false;
-let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;\nlet mouseLocked=false;\nconst MOUSE_SENSITIVITY=0.0028;
+let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;
+let mouseLocked=false;
+const MOUSE_SENSITIVITY=0.0028;
 const MOVE_SPEED=3.8, FOV=Math.PI/3, INTERNAL_W=480;
 let viewW=480,viewH=270,scaleX=1,scaleY=1;
 
