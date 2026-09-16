@@ -69,7 +69,7 @@ const MAPS={
  }
 };
 
-const SPAWNS=[[2.5,2.5],[22.5,2.5],[2.5,12.5],[22.5,12.5]];
+const SPAWNS=[[1.5,1.5],[23.5,13.5],[15.5,1.5],[8.5,13.5]];
 const COLORS=["#ff5b67","#4ea1ff","#ffd84d","#58df8c"];
 
 const WEAPONS={

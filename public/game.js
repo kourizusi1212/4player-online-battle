@@ -92,8 +92,9 @@ readyBtn.onclick=()=>send({type:"ready"});
 startBtn.onclick=()=>send({type:"start"});
 
 addEventListener("keydown",e=>{
- const k=e.key.toLowerCase(); keys.add(k);
- if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();
+ const k=e.key.toLowerCase();
+ if(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();
+ keys.add(k);
  if(!started)return;
  if(k==="r")send({type:"reload"});
  if(["1","2","3"].includes(k))send({type:"weapon",weapon:{1:"pistol",2:"shotgun",3:"sniper"}[k]});
