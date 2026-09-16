@@ -3,38 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>4人3Dバトル 軽量安定版</title>
+<title>4人オンライン3Dバトル - Rebuild</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090c12;color:#fff;font-family:system-ui}
-canvas{display:block;width:100vw;height:100vh;image-rendering:auto}
-#lobby{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle,#25324b,#080b10);z-index:10}
-.card{width:min(420px,92vw);max-height:92vh;overflow:auto;padding:28px;border-radius:20px;background:#121824ee;border:1px solid #ffffff22;box-shadow:0 20px 80px #000}
-.card h1{margin-top:0}.card input,.card button{width:100%;padding:13px;margin:7px 0;border:0;border-radius:10px;font-size:16px}
-.card button{cursor:pointer;font-weight:700;background:#fff}.room{font-size:38px;letter-spacing:8px;text-align:center;padding:10px;color:#ffd447}
-.players{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p{padding:9px;background:#ffffff0b;border-radius:8px}.hide{display:none!important}
-#hud{position:fixed;inset:0;pointer-events:none}.top{display:flex;justify-content:space-between;padding:14px 18px;font-weight:700;text-shadow:0 2px 4px #000}
-.hp{position:absolute;left:18px;bottom:20px;width:250px;height:22px;background:#222;border:2px solid #fff;border-radius:9px;overflow:hidden}
-.bar{height:100%;background:#4fe083}.hptext{position:absolute;left:28px;bottom:23px}.cross{position:absolute;left:50%;top:50%;font-size:30px;transform:translate(-50%,-50%);text-shadow:0 0 8px #fff}
-.gun{position:absolute;left:50%;bottom:0;width:180px;height:130px;transform:translateX(-50%);background:linear-gradient(120deg,#333,#111);clip-path:polygon(40% 100%,48% 35%,100% 30%,100% 65%,60% 70%,58% 100%)}
-#msg{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);font-size:40px;font-weight:900;text-align:center;text-shadow:0 4px 15px #000}
-.row{display:flex;gap:8px}.row>*{flex:1}small{display:block;margin-top:8px;color:#bbb}#err{color:#ff8b8b;min-height:22px}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080c13;color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+canvas{display:block;width:100vw;height:100vh}
+button,input,select{font:inherit}
+#lobby{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#334a69,#090d14 65%)}
+.card{width:min(560px,94vw);max-height:94vh;overflow:auto;padding:26px;border:1px solid #ffffff24;border-radius:22px;background:#101722ee;box-shadow:0 25px 100px #0009}
+h1{margin:0 0 18px;font-size:28px}
+input,select,button{width:100%;padding:13px;margin:6px 0;border:0;border-radius:11px}
+input,select{background:#202a38;color:#fff;outline:none}
+button{cursor:pointer;font-weight:800;background:#f2f5f8;color:#111}
+button:hover{filter:brightness(1.08)}
+.row{display:flex;gap:9px}.row>*{flex:1}
+#joinbox{margin-top:6px}.hide{display:none!important}
+#err{min-height:24px;color:#ff8585;margin-top:6px}
+.mapbox{margin:8px 0;padding:10px;background:#ffffff0b;border-radius:12px}
+.mapbox label{display:block;font-size:13px;color:#aab4c2;margin-bottom:4px}
+.room{font-size:44px;letter-spacing:10px;text-align:center;color:#ffd94a;padding:8px}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.p{padding:10px;border-radius:10px;background:#ffffff0a}
+small{display:block;color:#aab4c2;margin-top:8px;line-height:1.5}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{display:flex;justify-content:space-between;gap:8px;padding:12px 16px;text-shadow:0 2px 5px #000;font-weight:800}
+.top span{background:#0009;padding:7px 10px;border-radius:9px}
+.hpbox{position:absolute;left:18px;bottom:18px;width:270px}
+.hp{height:22px;border:2px solid #fff;border-radius:9px;overflow:hidden;background:#222}
+.bar{height:100%;background:#4fe083;width:100%}
+.hptext{margin-top:4px;font-weight:800}
+.cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;text-shadow:0 0 9px #fff}
+.gun{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:240px;height:155px;background:linear-gradient(145deg,#555,#121212);clip-path:polygon(38% 100%,43% 36%,91% 28%,100% 38%,100% 64%,58% 72%,56% 100%)}
+.weapon{position:absolute;right:18px;bottom:18px;padding:12px 15px;border-radius:12px;background:#000a;text-align:right;min-width:170px}
+.killfeed{position:absolute;right:18px;top:68px;text-align:right;font-size:14px;line-height:1.7}
+#msg{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;font-size:34px;font-weight:900;text-shadow:0 4px 18px #000;max-width:90vw}
+.result{margin-top:10px;padding:14px;background:#000b;border-radius:13px;font-size:17px}
+.rank{display:flex;justify-content:space-between;padding:5px 0}
+#hint{margin-top:10px;padding:10px;background:#ffffff08;border-radius:10px;font-size:13px;color:#c5cfdb}
 </style>
 </head>
 <body>
-<div id="lobby"><div class="card">
-<h1>🎮 4人3Dバトル</h1>
-<input id="name" placeholder="プレイヤー名" maxlength="12">
-<div class="row"><button id="create">🏠 部屋を作る</button><button id="showjoin">🚪 部屋に参加</button></div>
-<div id="joinbox" class="hide"><input id="room" placeholder="4桁の部屋番号" maxlength="4" inputmode="numeric"><button id="join">参加する</button></div>
-<div id="inside" class="hide">
-<div>部屋番号</div><div class="room" id="rid"></div><button id="copy">📋 部屋番号をコピー</button><div id="copymsg"></div>
-<div class="players" id="plist"></div><button id="ready">✅ 準備完了</button><button id="start">対戦開始</button>
-<small>2〜4人。全員が準備完了すると開始できます。</small>
-</div><div id="err"></div>
-</div></div>
-<canvas id="c"></canvas>
-<div id="hud" class="hide"><div class="top"><span>ROOM <b id="roomhud"></b></span><span id="score"></span></div>
-<div class="hp"><div class="bar" id="bar"></div></div><div class="hptext">HP <b id="hp"></b></div>
-<div class="cross">+</div><div class="gun"></div><div id="msg"></div></div>
+<div id="lobby">
+ <div class="card">
+  <h1>🎮 4人オンライン3Dバトル</h1>
+  <input id="name" maxlength="12" placeholder="プレイヤー名">
+  <div class="mapbox">
+   <label>マップ</label>
+   <select id="map">
+    <option value="maze">迷路</option>
+    <option value="arena">アリーナ</option>
+    <option value="ruins">廃墟</option>
+   </select>
+  </div>
+  <div class="row">
+   <button id="create">🏠 部屋を作る</button>
+   <button id="showjoin">🚪 部屋に参加</button>
+  </div>
+  <div id="joinbox" class="hide">
+   <input id="roomInput" maxlength="4" inputmode="numeric" placeholder="4桁の部屋番号">
+   <button id="join">参加する</button>
+  </div>
+  <div id="inside" class="hide">
+   <div>部屋番号</div>
+   <div class="room" id="rid">----</div>
+   <button id="copy">📋 部屋番号をコピー</button>
+   <div id="copymsg"></div>
+   <div class="players" id="plist"></div>
+   <button id="ready">✅ READY</button>
+   <button id="start">対戦開始</button>
+   <div id="hint">2〜4人。全員READY後、部屋主が開始できます。</div>
+  </div>
+  <div id="err"></div>
+ </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="hud" class="hide">
+ <div class="top">
+  <span>ROOM <b id="roomHud"></b></span>
+  <span>⏱ <b id="timer">05:00</b></span>
+  <span id="scoreHud"></span>
+ </div>
+ <div class="hpbox">
+  <div class="hp"><div class="bar" id="bar"></div></div>
+  <div class="hptext">HP <b id="hp">100</b></div>
+ </div>
+ <div class="cross">+</div>
+ <div class="gun"></div>
+ <div class="weapon">
+  <b id="weaponName">ハンドガン</b><br>
+  弾 <b id="ammo">12</b> / <span id="mag">12</span>
+  <small>1/2/3 武器　R リロード<br>Space/クリック 射撃<br>WASD 移動　↑↓←→ 視点</small>
+ </div>
+ <div class="killfeed" id="killfeed"></div>
+ <div id="msg"></div>
+</div>
+
 <script src="game.js"></script>
-</body></html>
+</body>
+</html>

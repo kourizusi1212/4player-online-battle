@@ -1,207 +1,253 @@
-const c=document.querySelector("#c"),ctx=c.getContext("2d",{alpha:false}),
-lobby=document.querySelector("#lobby"),hud=document.querySelector("#hud"),
-nameI=document.querySelector("#name"),roomI=document.querySelector("#room"),
-inside=document.querySelector("#inside"),ridE=document.querySelector("#rid"),
-plist=document.querySelector("#plist"),err=document.querySelector("#err"),
-msg=document.querySelector("#msg");
+const $=s=>document.querySelector(s);
+const canvas=$("#game"),ctx=canvas.getContext("2d",{alpha:false});
+const lobby=$("#lobby"),hud=$("#hud"),err=$("#err"),nameInput=$("#name"),mapInput=$("#map");
+const createBtn=$("#create"),showJoinBtn=$("#showjoin"),joinBox=$("#joinbox"),joinBtn=$("#join");
+const roomInput=$("#roomInput"),inside=$("#inside"),rid=$("#rid"),copyBtn=$("#copy"),copymsg=$("#copymsg");
+const plist=$("#plist"),readyBtn=$("#ready"),startBtn=$("#start"),msg=$("#msg");
+const timer=$("#timer"),scoreHud=$("#scoreHud"),hp=$("#hp"),bar=$("#bar");
+const ammo=$("#ammo"),mag=$("#mag"),weaponName=$("#weaponName"),killfeed=$("#killfeed");
 
-let ws,me="",room="",map=[],players=[],keys={},started=false;
-let localX=2.5,localY=2.5,localA=0,lastSend=0,lastFrame=0;
-let mouseLocked=false;
-const MOUSE_SENSITIVITY=0.0028;
-const MOVE_SPEED=3.8, FOV=Math.PI/3, INTERNAL_W=480;
-let viewW=480,viewH=270,scaleX=1,scaleY=1;
-
-function connect(){
-  ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);
-  ws.onopen=()=>err.textContent="";
-  ws.onclose=()=>{if(started)msg.textContent="通信が切断されました"};
-  ws.onmessage=e=>{
-    const m=JSON.parse(e.data);
-    if(m.type==="joined"){
-      me=m.id;room=m.room;map=m.map;ridE.textContent=room;
-      document.querySelector("#roomhud").textContent=room;
-      inside.classList.remove("hide");
-    }
-    if(m.type==="state"){
-      players=m.players;
-      plist.innerHTML=players.map(p=>`<div class="p">${escapeHtml(p.name)} ${p.alive?"🟢":"💀"}　${p.score}K ${p.ready?"✓":""}</div>`).join("");
-      const p=players.find(x=>x.id===me);
-      if(p){
-        if(!started){localX=p.x;localY=p.y;localA=p.a}
-        else{
-          // 移動位置だけをゆるく補正。視点角度はマウス入力を最優先にして
-          // サーバー更新で上書きしない（これが視点のガクつきの主原因）。
-          localX+=(p.x-localX)*0.12;
-          localY+=(p.y-localY)*0.12;
-        }
-        document.querySelector("#hp").textContent=p.hp;
-        document.querySelector("#bar").style.width=p.hp+"%";
-        document.querySelector("#score").textContent=`${p.name}　🏆 ${p.score}`;
-      }
-    }
-    if(m.type==="start"){
-      started=true;lobby.classList.add("hide");hud.classList.remove("hide");msg.textContent="";
-      const p=players.find(x=>x.id===me);if(p){localX=p.x;localY=p.y;localA=p.a}
-    }
-    if(m.type==="win"){
-      started=false;
-      msg.innerHTML=`🏆 ${escapeHtml(m.winner||"引き分け")} の勝利！<br><small>再戦するにはページを再読み込み</small>`;
-    }
-    if(m.type==="error")err.textContent=m.msg;
-    if(m.type==="down")showTemp("💀 撃破された！");
-    if(m.type==="pickup")showTemp("❤️ HP回復！");
-  };
-}
-connect();
-
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function showTemp(t){msg.textContent=t;setTimeout(()=>{if(msg.textContent===t)msg.textContent=""},800)}
-
-create.onclick=()=>{
-  const r=String(Math.floor(1000+Math.random()*9000));
-  ws.send(JSON.stringify({type:"create",name:nameI.value||"Player",room:r}));
-};
-showjoin.onclick=()=>document.querySelector("#joinbox").classList.remove("hide");
-join.onclick=()=>ws.send(JSON.stringify({type:"join",name:nameI.value||"Player",room:roomI.value||"1234"}));
-copy.onclick=async()=>{
-  try{await navigator.clipboard.writeText(room);copymsg.textContent="コピーしました！"}catch{copymsg.textContent="コピーできませんでした"}
-};
-ready.onclick=()=>ws.send(JSON.stringify({type:"ready"}));
-start.onclick=()=>{ ws.send(JSON.stringify({type:"start"})); setTimeout(lockMouse,80); };
-
-
-// 3D迷路と同じ「player.angle を直接更新する」方式のマウス視点。
-// ロビーでは動かず、ゲーム開始後だけ canvas を Pointer Lock して視点を回転する。
-function lockMouse(){
-  if(!started || !c.requestPointerLock) return;
-  try{ c.requestPointerLock(); }catch(_){}
-}
-c.addEventListener("click",()=>{
-  if(started) lockMouse();
-});
-document.addEventListener("pointerlockchange",()=>{
-  mouseLocked=(document.pointerLockElement===c);
-});
-c.addEventListener("mousemove",e=>{
-  if(!started || !mouseLocked) return;
-  // movementX は Pointer Lock の相対移動量。フレーム数に依存させず
-  // 入力イベントごとに直接角度へ反映する。
-  localA += e.movementX * MOUSE_SENSITIVITY;
-    // 角度を -PI ～ PI に正規化（3D迷路の angle と同じ考え方）
-    if(localA>Math.PI) localA-=Math.PI*2;
-    if(localA<-Math.PI) localA+=Math.PI*2;
-});
-
-addEventListener("keydown",e=>{
-  keys[e.key.toLowerCase()]=true;
-  if(e.code==="Space"&&started){
-    ws.send(JSON.stringify({type:"shoot"}));e.preventDefault();
-  }
-  if(["arrowup","arrowdown","arrowleft","arrowright"].includes(e.key.toLowerCase()))e.preventDefault();
-});
-addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
-
-function wall(x,y){
-  const X=Math.floor(x),Y=Math.floor(y);
-  return !map[Y]||map[Y][X]==="1";
-}
-function blocked(x,y,r=.20){
-  return [
-    [x-r,y-r],[x+r,y-r],
-    [x-r,y+r],[x+r,y+r],[x,y]
-  ].some(([px,py])=>wall(px,py));
-}
+let ws=null,myId="",room="",map=[],players=[],items=[];
+let started=false,localX=2.5,localY=2.5,localA=0,viewPitch=0;
+let lastNetwork=0,lastFrame=0,sendAt=0;
+const keys=new Set(),effects=[],feed=[];
+const FOV=Math.PI/3, MOVE_SPEED=4.0, TURN_SPEED=2.25, PITCH_SPEED=1.7;
+const WEAPONS={pistol:"ハンドガン",shotgun:"ショットガン",sniper:"スナイパー"};
 
 function resize(){
-  viewW=innerWidth;viewH=innerHeight;
-  const ar=16/9;
-  if(viewW/viewH>ar){viewH=Math.floor(viewW/ar)}else{viewW=Math.floor(viewH*ar)}
-  viewW=Math.max(320,Math.min(960,viewW));
-  viewH=Math.floor(viewW*9/16);
-  c.width=viewW;c.height=viewH;
-  c.style.width="100vw";c.style.height="100vh";
+ const dpr=Math.min(window.devicePixelRatio||1,1.75);
+ canvas.width=Math.max(640,Math.floor(innerWidth*dpr));
+ canvas.height=Math.max(360,Math.floor(innerHeight*dpr));
 }
 addEventListener("resize",resize);resize();
 
+function connect(){
+ const proto=location.protocol==="https:"?"wss":"ws";
+ ws=new WebSocket(`${proto}://${location.host}`);
+ ws.onopen=()=>err.textContent="";
+ ws.onerror=()=>err.textContent="サーバーに接続できません。";
+ ws.onclose=()=>{if(started){started=false;msg.textContent="通信が切断されました";}};
+ ws.onmessage=e=>handle(JSON.parse(e.data));
+}
+function send(o){
+ if(ws?.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true}
+ err.textContent="サーバーに接続中です。";return false;
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function handle(m){
+ if(m.type==="joined"){
+  myId=m.id;room=m.room;map=m.map||[];rid.textContent=room;$("#roomHud").textContent=room;
+  inside.classList.remove("hide");err.textContent="";
+  startBtn.style.display=m.host?"block":"none";
+  plist.innerHTML="";
+ }
+ if(m.type==="state"){
+  players=m.players||[];
+  const me=players.find(p=>p.id===myId);
+  if(me){
+   if(!started){localX=me.x;localY=me.y;localA=me.a}
+   hp.textContent=me.hp;bar.style.width=Math.max(0,me.hp)+"%";
+   ammo.textContent=me.ammo;mag.textContent=me.mag;
+   weaponName.textContent=me.reloading?"🔄 リロード中…":(WEAPONS[me.weapon]||me.weapon);
+   scoreHud.textContent=`${esc(me.name)}　🏆 ${me.score}　☠ ${me.kills}/${me.deaths}`;
+  }
+  plist.innerHTML=players.map(p=>`<div class="p">${esc(p.name)} ${p.alive?"🟢":"💀"}　${p.score}K ${p.ready?"✓ READY":""}</div>`).join("");
+  const sec=Math.max(0,Math.ceil((m.timeLeft||0)/1000));
+  timer.textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`;
+ }
+ if(m.type==="start"){
+  started=true;items=m.items||[];lobby.classList.add("hide");hud.classList.remove("hide");msg.textContent="";
+  const me=players.find(p=>p.id===myId);if(me){localX=me.x;localY=me.y;localA=me.a}
+ }
+ if(m.type==="shot"){
+  const p=players.find(x=>x.id===m.from);
+  effects.push({kind:"muzzle",x:p?.x??localX,y:p?.y??localY,t:performance.now()});
+  if(m.hit)effects.push({kind:"hit",t:performance.now()});
+ }
+ if(m.type==="down"){
+  addFeed(`${m.attacker} → ${m.target}`);
+  if(m.attacker===players.find(p=>p.id===myId)?.name)temp("🎯 撃破！");
+  effects.push({kind:"boom",x:m.x,y:m.y,t:performance.now()});
+ }
+ if(m.type==="pickup"){
+  temp(m.item==="heal"?"❤️ HP回復":m.item==="ammo"?"📦 弾薬補給":"⚡ スピードUP");
+ }
+ if(m.type==="win"){
+  started=false;const rows=(m.ranking||[]).map((p,i)=>`<div class="rank"><span>${i+1}位　${esc(p.name)}</span><b>${p.score} K</b></div>`).join("");
+  msg.innerHTML=`🏆 ${esc(m.winner||"引き分け")} の勝利！<div class="result">${rows}</div><small>ページを再読み込みするとロビーへ戻れます。</small>`;
+ }
+ if(m.type==="error")err.textContent=m.msg||"エラー";
+}
+createBtn.onclick=()=>{
+ const r=String(Math.floor(1000+Math.random()*9000));
+ send({type:"create",room:r,name:nameInput.value||"Player",mapKey:mapInput.value});
+};
+showJoinBtn.onclick=()=>joinBox.classList.toggle("hide");
+joinBtn.onclick=()=>send({type:"join",room:roomInput.value.trim(),name:nameInput.value||"Player"});
+copyBtn.onclick=async()=>{
+ try{await navigator.clipboard.writeText(room);copymsg.textContent="コピーしました！";}
+ catch{copymsg.textContent="コピーできませんでした。";}
+};
+readyBtn.onclick=()=>send({type:"ready"});
+startBtn.onclick=()=>send({type:"start"});
+
+addEventListener("keydown",e=>{
+ const k=e.key.toLowerCase();
+ keys.add(k);
+ if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();
+ if(!started)return;
+ if(e.code==="Space"){send({type:"shoot"});e.preventDefault();}
+ if(k==="r")send({type:"reload"});
+ if(["1","2","3"].includes(k))send({type:"weapon",weapon:{1:"pistol",2:"shotgun",3:"sniper"}[k]});
+});
+addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
+canvas.addEventListener("mousedown",e=>{if(started&&e.button===0)send({type:"shoot"})});
+
+function wall(x,y){
+ const X=Math.floor(x),Y=Math.floor(y);
+ return !map[Y]||map[Y][X]==="1";
+}
+function blocked(x,y,r=.22){
+ return [[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r],
+ [x,y-r],[x,y+r],[x-r,y],[x+r,y]].some(([px,py])=>wall(px,py));
+}
+function norm(a){
+ while(a>Math.PI)a-=Math.PI*2;
+ while(a<-Math.PI)a+=Math.PI*2;
+ return a;
+}
 function update(dt){
-  if(!started)return;
-  // W=前進 / S=後退 / A=左 / D=右
-  let forward=(keys.w?1:0)-(keys.s?1:0);
-  let strafe=(keys.d?1:0)-(keys.a?1:0);
-  if(forward||strafe){
-    const len=Math.hypot(forward,strafe);
-    forward/=len; strafe/=len;
-    const sp=MOVE_SPEED*dt;
-    const dx=(Math.sin(localA)*forward+Math.cos(localA)*strafe)*sp;
-    const dy=(-Math.cos(localA)*forward+Math.sin(localA)*strafe)*sp;
-    const r=.20;
-    if(!blocked(localX+dx,localY,r)) localX+=dx;
-    if(!blocked(localX,localY+dy,r)) localY+=dy;
-  }
-  const now=performance.now();
-  if(ws && ws.readyState===WebSocket.OPEN && now-lastSend>50){
-    ws.send(JSON.stringify({type:"move",x:localX,y:localY,a:localA}));
-    lastSend=now;
-  }
+ if(!started)return;
+
+ // Arrow keys are dedicated to view. They never move the player.
+ if(keys.has("arrowleft"))localA-=TURN_SPEED*dt;
+ if(keys.has("arrowright"))localA+=TURN_SPEED*dt;
+ if(keys.has("arrowup"))viewPitch=Math.max(-0.28,viewPitch-PITCH_SPEED*dt);
+ if(keys.has("arrowdown"))viewPitch=Math.min(0.28,viewPitch+PITCH_SPEED*dt);
+ localA=norm(localA);
+
+ let f=(keys.has("w")?1:0)-(keys.has("s")?1:0);
+ let str=(keys.has("d")?1:0)-(keys.has("a")?1:0);
+ if(f||str){
+  const len=Math.hypot(f,str);f/=len;str/=len;
+  const me=players.find(p=>p.id===myId);
+  let speed=MOVE_SPEED;
+  if(me && me.speedUntil>Date.now())speed*=1.65;
+  const dist=speed*dt;
+  const dx=(Math.cos(localA)*f-Math.sin(localA)*str)*dist;
+  const dy=(Math.sin(localA)*f+Math.cos(localA)*str)*dist;
+  if(!blocked(localX+dx,localY))localX+=dx;
+  if(!blocked(localX,localY+dy))localY+=dy;
+ }
+
+ const now=performance.now();
+ if(now-sendAt>45){
+  send({type:"move",x:localX,y:localY,a:localA});
+  sendAt=now;
+ }
 }
-
-// 高速なDDAレイキャスト。1フレームあたりの計算量を大幅削減
-function castRay(px,py,angle){
-  const dx=Math.cos(angle),dy=Math.sin(angle);
-  let mx=Math.floor(px),my=Math.floor(py);
-  const ddx=Math.abs(1/(Math.abs(dx)<1e-9?1e-9:dx));
-  const ddy=Math.abs(1/(Math.abs(dy)<1e-9?1e-9:dy));
-  let sx,sy,sdx,sdy;
-  if(dx<0){sx=-1;sdx=(px-mx)*ddx}else{sx=1;sdx=(mx+1-px)*ddx}
-  if(dy<0){sy=-1;sdy=(py-my)*ddy}else{sy=1;sdy=(my+1-py)*ddy}
-  for(let i=0;i<80;i++){
-    let dist;
-    if(sdx<sdy){dist=sdx;sdx+=ddx;mx+=sx}
-    else{dist=sdy;sdy+=ddy;my+=sy}
-    if(!map[my]||map[my][mx]==="1") return Math.max(.05,dist);
-  }
-  return 20;
+function castRay(px,py,a){
+ const dx=Math.cos(a),dy=Math.sin(a);
+ let mx=Math.floor(px),my=Math.floor(py);
+ const ddx=Math.abs(1/(Math.abs(dx)<1e-9?1e-9:dx));
+ const ddy=Math.abs(1/(Math.abs(dy)<1e-9?1e-9:dy));
+ let sx,sy,sdx,sdy;
+ if(dx<0){sx=-1;sdx=(px-mx)*ddx}else{sx=1;sdx=(mx+1-px)*ddx}
+ if(dy<0){sy=-1;sdy=(py-my)*ddy}else{sy=1;sdy=(my+1-py)*ddy}
+ for(let i=0;i<160;i++){
+  let d;
+  if(sdx<sdy){d=sdx;sdx+=ddx;mx+=sx}else{d=sdy;sdy+=ddy;my+=sy}
+  if(!map[my]||map[my][mx]==="1")return Math.max(.03,d);
+ }
+ return 30;
 }
-
-function draw(meP){
-  ctx.fillStyle="#7894a4";ctx.fillRect(0,0,c.width,c.height/2);
-  ctx.fillStyle="#26352e";ctx.fillRect(0,c.height/2,c.width,c.height/2);
-  if(!meP)return;
-
-  const rays=240,strip=c.width/rays;
-  for(let i=0;i<rays;i++){
-    const a=localA-FOV/2+(i+.5)*FOV/rays;
-    const d=castRay(localX,localY,a);
-    const cd=d*Math.cos(a-localA);
-    const h=Math.min(c.height*1.5,c.height/(cd||.1));
-    const light=Math.max(15,55-cd*2.2);
-    ctx.fillStyle=`hsl(${190-Math.min(150,cd*7)},35%,${light}%)`;
-    ctx.fillRect(i*strip,c.height/2-h/2,strip+1,h);
-  }
-
-  for(const p of players)if(p.id!==meP.id&&p.alive){
-    const dx=p.x-localX,dy=p.y-localY,d=Math.hypot(dx,dy);
-    let ang=Math.atan2(dy,dx)-localA;
-    ang=Math.atan2(Math.sin(ang),Math.cos(ang));
-    if(Math.abs(ang)<FOV/2&&d<15){
-      // 壁越し表示を防ぐ
-      const wallD=castRay(localX,localY,Math.atan2(dy,dx));
-      if(wallD<d-.15)continue;
-      const sx=c.width/2+Math.tan(ang)/(Math.tan(FOV/2))*c.width/2;
-      const sz=Math.min(220,c.height/d*.55);
-      ctx.fillStyle=p.color;ctx.fillRect(sx-sz/4,c.height/2-sz/2,sz/2,sz);
-      ctx.fillStyle="#fff";ctx.font="bold 14px system-ui";ctx.textAlign="center";
-      ctx.fillText(p.name,sx,c.height/2-sz/2-8);
-    }
-  }
+function project(x,y){
+ const dx=x-localX,dy=y-localY,d=Math.hypot(dx,dy);
+ let a=norm(Math.atan2(dy,dx)-localA);
+ if(Math.abs(a)>FOV/2||d>28)return null;
+ const sx=canvas.width/2 + Math.tan(a)/Math.tan(FOV/2)*(canvas.width/2);
+ const horizon=canvas.height/2 + viewPitch*canvas.height;
+ return {d,a,sx,horizon};
 }
+function draw(){
+ const w=canvas.width,h=canvas.height;
+ ctx.fillStyle="#7fa3bd";ctx.fillRect(0,0,w,h/2);
+ ctx.fillStyle="#293b32";ctx.fillRect(0,h/2,w,h/2);
 
+ if(!started)return;
+
+ const rays=Math.min(900,Math.max(480,Math.floor(w/1.7)));
+ const strip=w/rays;
+ const horizon=h/2+viewPitch*h;
+
+ for(let i=0;i<rays;i++){
+  const a=localA-FOV/2+(i+.5)*FOV/rays;
+  const raw=castRay(localX,localY,a);
+  const d=raw*Math.cos(a-localA);
+  const wallH=Math.min(h*1.9,h/(Math.max(.05,d)));
+  const light=Math.max(18,78-d*2.1);
+  const hue=195-Math.min(120,d*5);
+  ctx.fillStyle=`hsl(${hue},32%,${light}%)`;
+  ctx.fillRect(i*strip,horizon-wallH/2,strip+1,wallH);
+ }
+
+ // Floor marks give more depth.
+ ctx.globalAlpha=.16;
+ for(let y=horizon;y<h;y+=22){ctx.fillStyle="#fff";ctx.fillRect(0,y,w,1)}
+ ctx.globalAlpha=1;
+
+ // Items
+ for(const it of items){
+  if(!it.active)continue;
+  const q=project(it.x,it.y);if(!q)continue;
+  if(castRay(localX,localY,Math.atan2(it.y-localY,it.x-localX))<q.d-.12)continue;
+  const size=Math.max(10,Math.min(70,h/(q.d*7)));
+  ctx.font=`${size}px system-ui`;ctx.textAlign="center";
+  ctx.fillText(it.type==="heal"?"❤️":it.type==="ammo"?"📦":"⚡",q.sx,q.horizon+size/2);
+ }
+
+ // Other players
+ for(const p of players){
+  if(p.id===myId||!p.alive)continue;
+  const q=project(p.x,p.y);if(!q)continue;
+  const realDist=castRay(localX,localY,Math.atan2(p.y-localY,p.x-localX));
+  if(realDist<q.d-.18)continue;
+  const size=Math.min(h*1.0,h/(q.d*.72));
+  const x=q.sx,y=q.horizon;
+  ctx.fillStyle=p.color;
+  // body
+  ctx.fillRect(x-size*.20,y-size*.32,size*.40,size*.55);
+  // head
+  ctx.beginPath();ctx.arc(x,y-size*.43,size*.13,0,Math.PI*2);ctx.fill();
+  // weapon
+  ctx.fillRect(x+size*.13,y-size*.20,size*.28,size*.06);
+  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font="bold 14px system-ui";
+  ctx.fillText(`${p.name}  ${p.hp}`,x,y-size*.58);
+ }
+
+ const now=performance.now();
+ for(let i=effects.length-1;i>=0;i--){
+  const e=effects[i],age=now-e.t;
+  if(age>550){effects.splice(i,1);continue}
+  if(e.kind==="muzzle"){
+   ctx.fillStyle="#ffd34d";ctx.beginPath();ctx.arc(w/2,h/2,9+Math.random()*12,0,Math.PI*2);ctx.fill();
+  }else if(e.kind==="hit"){
+   ctx.fillStyle="#fff";ctx.font="bold 34px system-ui";ctx.textAlign="center";ctx.fillText("✦",w/2,h/2-30);
+  }else if(e.kind==="boom"){
+   ctx.strokeStyle="#ffd34d";ctx.lineWidth=5;ctx.beginPath();ctx.arc(w/2,h/2,30+age*.22,0,Math.PI*2);ctx.stroke();
+  }
+ }
+}
+function addFeed(t){
+ feed.unshift(t);if(feed.length>5)feed.pop();
+ killfeed.innerHTML=feed.map(esc).join("<br>");
+}
+function temp(t){
+ msg.textContent=t;setTimeout(()=>{if(msg.textContent===t)msg.textContent=""},800);
+}
 function loop(t){
-  const dt=Math.min(.05,(t-lastFrame||16.7)/1000);lastFrame=t;
-  update(dt);
-  const meP=players.find(x=>x.id===me);
-  draw(meP);
-  requestAnimationFrame(loop);
+ const dt=Math.min(.04,(t-lastFrame||16.67)/1000);lastFrame=t;
+ update(dt);draw();requestAnimationFrame(loop);
 }
+connect();
 requestAnimationFrame(loop);
