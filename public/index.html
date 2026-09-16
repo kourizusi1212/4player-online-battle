@@ -32,7 +32,7 @@ small{display:block;color:#aab4c2;margin-top:8px;line-height:1.5}
 .hp{height:22px;border:2px solid #fff;border-radius:9px;overflow:hidden;background:#222}
 .bar{height:100%;background:#4fe083;width:100%}
 .hptext{margin-top:4px;font-weight:800}
-.cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;text-shadow:0 0 9px #fff}
+.crosshair{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);filter:drop-shadow(0 1px 3px #000);transition:transform .12s,opacity .12s}.ch{position:absolute;display:block;background:#fff;border-radius:2px}.ch.top,.ch.bottom{left:15px;width:4px;height:9px}.ch.top{top:0}.ch.bottom{bottom:0}.ch.left,.ch.right{top:15px;width:9px;height:4px}.ch.left{left:0}.ch.right{right:0}.ch.dot{left:15px;top:15px;width:4px;height:4px;border-radius:50%}.crosshair.aim{transform:translate(-50%,-50%) scale(.72);opacity:.95}
 .gun{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:240px;height:155px;background:linear-gradient(145deg,#555,#121212);clip-path:polygon(38% 100%,43% 36%,91% 28%,100% 38%,100% 64%,58% 72%,56% 100%)}
 .weapon{position:absolute;right:18px;bottom:18px;padding:12px 15px;border-radius:12px;background:#000a;text-align:right;min-width:170px}
 .killfeed{position:absolute;right:18px;top:68px;text-align:right;font-size:14px;line-height:1.7}
@@ -89,12 +89,12 @@ small{display:block;color:#aab4c2;margin-top:8px;line-height:1.5}
   <div class="hp"><div class="bar" id="bar"></div></div>
   <div class="hptext">HP <b id="hp">100</b></div>
  </div>
- <div class="cross">+</div>
+ <div id="crosshair" class="crosshair"><span class="ch top"></span><span class="ch bottom"></span><span class="ch left"></span><span class="ch right"></span><span class="ch dot"></span></div>
  <div class="gun"></div>
  <div class="weapon">
   <b id="weaponName">ハンドガン</b><br>
   弾 <b id="ammo">12</b> / <span id="mag">12</span>
-  <small>1/2/3 武器　R リロード<br>Space/クリック 射撃<br>WASD 移動　↑↓←→ 視点</small>
+  <small>1/2/3 武器　R リロード<br>左クリック 射撃　右クリック 長押しで照準<br>WASD 移動　マウス 視点</small>
  </div>
  <div class="killfeed" id="killfeed"></div>
  <div id="msg"></div>
