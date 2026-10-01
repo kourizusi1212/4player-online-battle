@@ -3,103 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>4人オンライン3Dバトル - Rebuild</title>
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080c13;color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-canvas{display:block;width:100vw;height:100vh}
-button,input,select{font:inherit}
-#lobby{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#334a69,#090d14 65%)}
-.card{width:min(560px,94vw);max-height:94vh;overflow:auto;padding:26px;border:1px solid #ffffff24;border-radius:22px;background:#101722ee;box-shadow:0 25px 100px #0009}
-h1{margin:0 0 18px;font-size:28px}
-input,select,button{width:100%;padding:13px;margin:6px 0;border:0;border-radius:11px}
-input,select{background:#202a38;color:#fff;outline:none}
-button{cursor:pointer;font-weight:800;background:#f2f5f8;color:#111}
-button:hover{filter:brightness(1.08)}
-.row{display:flex;gap:9px}.row>*{flex:1}
-#joinbox{margin-top:6px}.hide{display:none!important}
-#err{min-height:24px;color:#ff8585;margin-top:6px}
-.mapbox{margin:8px 0;padding:10px;background:#ffffff0b;border-radius:12px}
-.mapbox label{display:block;font-size:13px;color:#aab4c2;margin-bottom:4px}
-.room{font-size:44px;letter-spacing:10px;text-align:center;color:#ffd94a;padding:8px}
-.players{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
-.p{padding:10px;border-radius:10px;background:#ffffff0a}
-small{display:block;color:#aab4c2;margin-top:8px;line-height:1.5}
-#hud{position:fixed;inset:0;pointer-events:none}
-.top{display:flex;justify-content:space-between;gap:8px;padding:12px 16px;text-shadow:0 2px 5px #000;font-weight:800}
-.top span{background:#0009;padding:7px 10px;border-radius:9px}
-.hpbox{position:absolute;left:18px;bottom:18px;width:270px}
-.hp{height:22px;border:2px solid #fff;border-radius:9px;overflow:hidden;background:#222}
-.bar{height:100%;background:#4fe083;width:100%}
-.hptext{margin-top:4px;font-weight:800}
-.crosshair{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);filter:drop-shadow(0 1px 3px #000);transition:transform .12s,opacity .12s}.ch{position:absolute;display:block;background:#fff;border-radius:2px}.ch.top,.ch.bottom{left:15px;width:4px;height:9px}.ch.top{top:0}.ch.bottom{bottom:0}.ch.left,.ch.right{top:15px;width:9px;height:4px}.ch.left{left:0}.ch.right{right:0}.ch.dot{left:15px;top:15px;width:4px;height:4px;border-radius:50%}.crosshair.aim{transform:translate(-50%,-50%) scale(.72);opacity:.95}
-.gun{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:240px;height:155px;background:linear-gradient(145deg,#555,#121212);clip-path:polygon(38% 100%,43% 36%,91% 28%,100% 38%,100% 64%,58% 72%,56% 100%)}
-.weapon{position:absolute;right:18px;bottom:18px;padding:12px 15px;border-radius:12px;background:#000a;text-align:right;min-width:170px}
-.killfeed{position:absolute;right:18px;top:68px;text-align:right;font-size:14px;line-height:1.7}
-#msg{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;font-size:34px;font-weight:900;text-shadow:0 4px 18px #000;max-width:90vw}
-.result{margin-top:10px;padding:14px;background:#000b;border-radius:13px;font-size:17px}
-.rank{display:flex;justify-content:space-between;padding:5px 0}
-#hint{margin-top:10px;padding:10px;background:#ffffff08;border-radius:10px;font-size:13px;color:#c5cfdb}
-</style>
-</head>
+<title>ONLINE TETRIS 5</title>
+<link rel="stylesheet" href="/style.css">
+<style id="tetris-combo-feedback">
+.tetris-combo-feedback{position:fixed;left:50%;top:18%;transform:translateX(-50%);
+z-index:9999;font:900 30px system-ui,sans-serif;letter-spacing:1px;
+text-shadow:0 3px 8px #000;pointer-events:none;animation:tetrisComboPop .8s ease-out forwards}
+@keyframes tetrisComboPop{0%{opacity:0;transform:translateX(-50%) scale(.7)}
+20%{opacity:1;transform:translateX(-50%) scale(1.08)}100%{opacity:0;transform:translateX(-50%) scale(1)}}
+</style></head>
 <body>
-<div id="lobby">
- <div class="card">
-  <h1>🎮 4人オンライン3Dバトル</h1>
-  <input id="name" maxlength="12" placeholder="プレイヤー名">
-  <div class="mapbox">
-   <label>マップ</label>
-   <select id="map">
-    <option value="maze">迷路</option>
-    <option value="arena">アリーナ</option>
-    <option value="ruins">廃墟</option>
-   </select>
+<div id="modeScreen" class="screen">
+  <div class="card mode-card">
+    <div class="logo">ONLINE <span>TETRIS</span></div>
+    <p class="subtitle">プレイモードを選択してください</p>
+    <div class="mode-buttons">
+      <button id="singleModeBtn" class="mode-btn primary">一人でプレイ</button>
+      <button id="onlineModeBtn" class="mode-btn">オンライン</button>
+    </div>
+    <p class="mode-hint">一人でプレイ：すぐにゲームを開始します<br>オンライン：ルームを作って最大5人で対戦します</p>
   </div>
-  <div class="row">
-   <button id="create">🏠 部屋を作る</button>
-   <button id="showjoin">🚪 部屋に参加</button>
-  </div>
-  <div id="joinbox" class="hide">
-   <input id="roomInput" maxlength="4" inputmode="numeric" placeholder="4桁の部屋番号">
-   <button id="join">参加する</button>
-  </div>
-  <div id="inside" class="hide">
-   <div>部屋番号</div>
-   <div class="room" id="rid">----</div>
-   <button id="copy">📋 部屋番号をコピー</button>
-   <div id="copymsg"></div>
-   <div class="players" id="plist"></div>
-   <button id="ready">✅ READY</button>
-   <button id="start">対戦開始</button>
-   <div id="hint">2〜4人。全員READY後、部屋主が開始できます。</div>
-  </div>
-  <div id="err"></div>
- </div>
 </div>
 
-<canvas id="game"></canvas>
+<div id="lobbyScreen" class="screen">
+  <div class="card lobby-card">
+    <div class="logo">ONLINE <span>TETRIS</span></div>
+    <p class="subtitle">最大5人・リアルタイム対戦</p>
 
-<div id="hud" class="hide">
- <div class="top">
-  <span>ROOM <b id="roomHud"></b></span>
-  <span>⏱ <b id="timer">05:00</b></span>
-  <span id="scoreHud"></span>
- </div>
- <div class="hpbox">
-  <div class="hp"><div class="bar" id="bar"></div></div>
-  <div class="hptext">HP <b id="hp">100</b></div>
- </div>
- <div id="crosshair" class="crosshair"><span class="ch top"></span><span class="ch bottom"></span><span class="ch left"></span><span class="ch right"></span><span class="ch dot"></span></div>
- <div class="gun"></div>
- <div class="weapon">
-  <b id="weaponName">ハンドガン</b><br>
-  弾 <b id="ammo">12</b> / <span id="mag">12</span>
-  <small>1/2/3 武器　R リロード<br>左クリック 射撃　右クリック 長押しで照準<br>WASD 移動　マウス 視点</small>
- </div>
- <div class="killfeed" id="killfeed"></div>
- <div id="msg"></div>
+    <label>プレイヤー名</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" placeholder="名前を入力">
+
+    <label>ルームコード</label>
+    <input id="roomInput" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="4桁（参加時のみ）">
+
+    <div class="two-buttons">
+      <button id="createBtn" class="primary">ルームを作る</button>
+      <button id="joinBtn">ルームに参加</button>
+    </div>
+
+    <div id="connectionStatus" class="status">サーバーに接続中…</div>
+
+    <div id="roomPanel" class="room-panel hidden">
+      <div class="room-title">ROOM CODE</div>
+      <div id="roomCode" class="room-code">----</div>
+      <button id="copyBtn" class="copy-btn">コードをコピー</button>
+
+      <div class="panel-heading">
+        <span>参加者</span>
+        <span id="countLabel">0 / 5</span>
+      </div>
+      <div id="lobbyPlayers" class="player-list"></div>
+
+      <button id="readyBtn" class="ready-btn">READY</button>
+      <button id="lobbyStartBtn" class="start-btn hidden">ゲーム開始</button>
+
+      <div class="hint">2〜5人でプレイできます。全員READYになると部屋主がゲームを開始できます。<br>ルームコードを友達に伝えて参加してもらってください。</div>
+    </div>
+  </div>
 </div>
 
-<script src="game.js"></script>
+<div id="gameScreen" class="hidden">
+  <header class="topbar">
+    <div class="brand">ONLINE TETRIS 5</div>
+    <div id="gameRoomLabel" class="room-label">ROOM ----</div>
+    <button id="backBtn" class="small-btn">モード選択へ</button>
+  </header>
+
+  <main class="game-layout">
+    <aside class="left-column">
+      <div class="panel">
+        <h3>HOLD <span>Q</span></h3>
+        <canvas id="holdCanvas" width="140" height="100"></canvas>
+      </div>
+      <div class="panel">
+        <h3>NEXT</h3>
+        <canvas id="nextCanvas" width="140" height="100"></canvas>
+      </div>
+      <div class="panel stats">
+        <div><span>SCORE</span><b id="scoreValue">0</b></div>
+        <div><span>LINES</span><b id="linesValue">0</b></div>
+        <div><span>LEVEL</span><b id="levelValue">1</b></div>
+      </div>
+      <div class="panel controls">
+        <h3>操作</h3>
+        <p>A　右移動 / D　左移動</p>
+        <p>Z　左回転 / C　右回転</p>
+        <p>← →　左右移動 / ↑　右回転</p>
+        <p>↓　ソフトドロップ</p>
+        <p>S　ソフトドロップ</p>
+        <p>W / SPACE　ハードドロップ</p>
+        <p>Q　ホールド</p>
+        <p>P　ポーズ</p>
+      </div>
+    </aside>
+
+    <section class="board-area">
+      <div id="gameMessage" class="game-message hidden"></div>
+      <button id="rematchBtn" class="rematch-btn hidden">再戦する</button>
+      <canvas id="board" width="300" height="600"></canvas>
+    </section>
+
+    <aside class="right-column">
+      <div class="panel opponents">
+        <div class="opponents-title">OPPONENTS</div>
+        <div id="gamePlayers"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="/game.js"></script>
 </body>
 </html>

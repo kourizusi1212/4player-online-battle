@@ -1,28 +1,20 @@
-4人オンライン3Dバトル 完全作り直し版
+ONLINE TETRIS 5 - reference fixed build
 
-起動:
-1. Node.jsを用意
-2. このフォルダで npm install
-3. npm start
-4. ブラウザで http://localhost:10000
+Controls:
+A = move right
+D = move left
+Z = rotate left
+C = rotate right
+W / SPACE = hard drop
+S = soft drop
+Q = hold
+P = pause
+Arrow keys are also supported: Left/Right move, Up rotates right, Down soft drop.
 
-Render:
-- Build Command: npm install
-- Start Command: npm start
+Lobby:
+Create a room or enter a 4-digit room code to join.
+2-5 players. All players READY, then the host starts the game.
+Room code can be copied and shared.
 
-操作:
-- W/S: 前進・後退
-- A/D: 左右移動
-- マウス: 視点操作
-- 右クリック長押し: 照準（ズーム）
-- 左クリック: 発砲
-- ↑/↓/←/→: 視点バックアップ操作
-- R: リロード
-- 1/2/3: 武器変更
-
-部屋:
-- 4桁の部屋番号を自動生成して作成
-- 4人まで
-- 部屋主が開始
-- 2人以上で開始可能
-- READYは各プレイヤーが個別に切替
+The build keeps the ghost piece, line-clear animation, victory/rematch flow,
+and the multiplayer room structure while restoring the reference control scheme.
